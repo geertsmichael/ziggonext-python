@@ -67,6 +67,8 @@ class ZiggoNextBox:
         self._mqtt_broker = COUNTRY_URLS_MQTT[country_code]
     
     def register(self):
+        self._do_subscribe(self._householdId)
+        self._do_subscribe(self._householdId + "/+/status")
         payload = {
                 "source": self.mqttClientId,
                 "state": "ONLINE_RUNNING",
@@ -74,8 +76,6 @@ class ZiggoNextBox:
             }
         register_topic = self._householdId + "/" + self.mqttClientId + "/status"
         self.mqttClient.publish(register_topic, json.dumps(payload))
-        self._do_subscribe(self._householdId)
-        self._do_subscribe(self._householdId + "/+/status")
 
     
     

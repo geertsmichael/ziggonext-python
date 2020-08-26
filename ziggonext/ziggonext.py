@@ -93,8 +93,8 @@ class ZiggoNext:
             client.on_message = self._on_mqtt_client_message
             self.logger.debug("Connected to mqtt client.")
             self.mqttClientConnected = True
-            for box in self.settop_boxes:
-                box.register()
+            for box_key in self.settop_boxes.keys():
+                self.settop_boxes[box_key].register()
 
         elif resultCode == 5:
             self.logger.debug("Not authorized mqtt client. Retry to connect")
@@ -137,7 +137,7 @@ class ZiggoNext:
         self.token = jsonResult["token"]
         self.logger.debug("Fetched a token: %s", jsonResult)
         
-    def initialize(self, logger, enableMqttLogging: bool = True):
+    def initialize(self, logger, enableMqttLogging: bool = False):
         """Get token and start mqtt client for receiving data from Ziggo Next"""
         baseUrl = COUNTRY_URLS_HTTP[self._country_code]
         self._mqtt_broker = COUNTRY_URLS_MQTT[self._country_code]
@@ -154,9 +154,10 @@ class ZiggoNext:
         self.mqttClient.on_connect = self._on_mqtt_client_connect
         self.mqttClient.on_disconnect = self._on_mqtt_client_disconnect
         self.mqttClient.connect(self._mqtt_broker, DEFAULT_PORT)
+        if enableMqttLogging:
+            self.mqttClient.enable_logger(logger)
         self._register_settop_boxes()
         self.load_channels()
-        
         self.mqttClient.loop_start()
 
     def _send_key_to_box(self, box_id: str, key: str):
