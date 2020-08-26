@@ -59,7 +59,6 @@ class ZiggoNextBox:
         # self.mqttClient.loop_start()
         # self.channels = {}
         
-
     def _createUrls(self, country_code: str):
         baseUrl = COUNTRY_URLS_HTTP[country_code]
         self._api_url_listing_format =  baseUrl + "/listings/{id}"
@@ -76,11 +75,10 @@ class ZiggoNextBox:
             }
         register_topic = self._householdId + "/" + self.mqttClientId + "/status"
         self.mqttClient.publish(register_topic, json.dumps(payload))
+    
+    def set_callback(self, callback):
+        self._change_callback = callback
 
-    
-    
-    
-    
     def _do_subscribe(self, topic):
         """Subscribes to mqtt topic"""
         self.mqttClient.subscribe(topic)
@@ -104,6 +102,8 @@ class ZiggoNextBox:
         else:
             self._request_settop_box_state()
         self.state = state
+        if self._change_callback:
+            self._change_callback()
         
     
     def _request_settop_box_state(self):
@@ -196,6 +196,9 @@ class ZiggoNextBox:
             self.info.setTitle(appsState["appName"])
             self.info.setImage(logoPath)
             self.info.setPaused(False)
+    
+        if self._change_callback:
+            self._change_callback()
     
     def _get_recording_title(self, scCridImi):
         """Get recording title."""
