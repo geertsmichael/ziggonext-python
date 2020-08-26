@@ -40,7 +40,7 @@ class ZiggoNextBox:
     available: bool = False
     channels: ZiggoChannel = {}
 
-    def __init__(self, box_id:str, name:str, householdId:str, token:str, country_code:str, logger:Logger, mqttClient:Client, client_id:str):
+    def __init__(self, box_id:str, name:str, householdId:str, token:str, country_code:str, logger:Logger, mqttClient:Client, client_id:str, change_callback):
         self.box_id = box_id
         self.name = name
         self._householdId = householdId
@@ -51,6 +51,7 @@ class ZiggoNextBox:
         self._createUrls(country_code)
         self.mqttClientId = client_id
         self.mqttClient = mqttClient
+        self._change_callback = change_callback
         # self.mqttClient.username_pw_set(householdId, token)
         # self.mqttClient.tls_set()
         # self.mqttClient.on_connect = self._on_mqtt_client_connect
@@ -104,6 +105,8 @@ class ZiggoNextBox:
         else:
             self._request_settop_box_state()
         self.state = state
+        if self._change_callback:
+            self._change_callback()
         
     
     def _request_settop_box_state(self):
@@ -196,6 +199,10 @@ class ZiggoNextBox:
             self.info.setTitle(appsState["appName"])
             self.info.setImage(logoPath)
             self.info.setPaused(False)
+    
+    
+        if self._change_callback:
+            self._change_callback()
     
     def _get_recording_title(self, scCridImi):
         """Get recording title."""
