@@ -40,7 +40,7 @@ class ZiggoNextBox:
     available: bool = False
     channels: ZiggoChannel = {}
 
-    def __init__(self, box_id:str, name:str, householdId:str, token:str, country_code:str, logger:Logger, mqttClient:Client, client_id:str, change_callback):
+    def __init__(self, box_id:str, name:str, householdId:str, token:str, country_code:str, logger:Logger, mqttClient:Client, client_id:str):
         self.box_id = box_id
         self.name = name
         self._householdId = householdId
@@ -51,7 +51,6 @@ class ZiggoNextBox:
         self._createUrls(country_code)
         self.mqttClientId = client_id
         self.mqttClient = mqttClient
-        self._change_callback = change_callback
         # self.mqttClient.username_pw_set(householdId, token)
         # self.mqttClient.tls_set()
         # self.mqttClient.on_connect = self._on_mqtt_client_connect
@@ -60,7 +59,6 @@ class ZiggoNextBox:
         # self.mqttClient.loop_start()
         # self.channels = {}
         
-
     def _createUrls(self, country_code: str):
         baseUrl = COUNTRY_URLS_HTTP[country_code]
         self._api_url_listing_format =  baseUrl + "/listings/{id}"
@@ -77,11 +75,10 @@ class ZiggoNextBox:
             }
         register_topic = self._householdId + "/" + self.mqttClientId + "/status"
         self.mqttClient.publish(register_topic, json.dumps(payload))
+    
+    def set_callback(self, callback):
+        self._change_callback = callback
 
-    
-    
-    
-    
     def _do_subscribe(self, topic):
         """Subscribes to mqtt topic"""
         self.mqttClient.subscribe(topic)
@@ -199,7 +196,6 @@ class ZiggoNextBox:
             self.info.setTitle(appsState["appName"])
             self.info.setImage(logoPath)
             self.info.setPaused(False)
-    
     
         if self._change_callback:
             self._change_callback()

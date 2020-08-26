@@ -85,7 +85,7 @@ class ZiggoNext:
             if not box["platformType"] == "EOS":
                 continue
             box_id = box["deviceId"]
-            self.settop_boxes[box_id] = ZiggoNextBox(box_id, box["settings"]["deviceFriendlyName"], self.session.householdId, self.token, self._country_code, self.logger, self.mqttClient, self.mqttClientId, self._callback)
+            self.settop_boxes[box_id] = ZiggoNextBox(box_id, box["settings"]["deviceFriendlyName"], self.session.householdId, self.token, self._country_code, self.logger, self.mqttClient, self.mqttClientId)
 
     def _on_mqtt_client_connect(self, client, userdata, flags, resultCode):
         """Handling mqtt connect result"""
@@ -137,10 +137,9 @@ class ZiggoNext:
         self.token = jsonResult["token"]
         self.logger.debug("Fetched a token: %s", jsonResult)
         
-    def initialize(self, logger, callback, enableMqttLogging: bool = False):
+    def initialize(self, logger, enableMqttLogging: bool = False):
         """Get token and start mqtt client for receiving data from Ziggo Next"""
         baseUrl = COUNTRY_URLS_HTTP[self._country_code]
-        self._callback = callback
         self._mqtt_broker = COUNTRY_URLS_MQTT[self._country_code]
         self._api_url_session =  baseUrl + "/session"
         self._api_url_token =  baseUrl + "/tokens/jwt"
