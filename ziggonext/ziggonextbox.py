@@ -51,6 +51,7 @@ class ZiggoNextBox:
         self._createUrls(country_code)
         self.mqttClientId = client_id
         self.mqttClient = mqttClient
+        self._change_callback = None
         
     def _createUrls(self, country_code: str):
         baseUrl = COUNTRY_URLS_HTTP[country_code]
@@ -116,6 +117,10 @@ class ZiggoNextBox:
             return
         self.logger.debug(payload)
         statusPayload = payload["status"]
+        if not "uiStatus" in statusPayload:
+            self.logger.debug("Unexpected statusPayload: ")
+            self.logger.debug(statusPayload)
+            return
         uiStatus = statusPayload["uiStatus"]
         if uiStatus == "mainUI":
             playerState = statusPayload["playerState"]
