@@ -8,7 +8,7 @@ import time
 import sys, traceback
 
 import requests
-from .models import ZiggoNextSession, ZiggoChannel
+from .models import ZiggoNextSession, ZiggoChannel, ZiggoRecordingSingle, ZiggoRecordingShow
 from .ziggonextbox import ZiggoNextBox
 from .exceptions import ZiggoNextConnectionError, ZiggoNextAuthenticationError
 
@@ -119,8 +119,10 @@ class ZiggoNext:
         if "status" in jsonPayload:
             self.settop_boxes[deviceId]._update_settop_box(jsonPayload)
 
-    def _do_api_call(self, session, url):
+    def _do_api_call(self, session, url, tries = 0):
         """Executes api call and returns json object"""
+        if tries > 9:
+            raise ZiggoNextConnectionError("API call failed. See previous errors.")
         headers = {
             "X-OESP-Token": session.oespToken,
             "X-OESP-Username": self.username,
@@ -128,6 +130,11 @@ class ZiggoNext:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 403:
+            self.logger.info(f"Api call resultcode was 403. Refreshing token en trying again...")
+            self.get_session()
+            tries+=1
+            self._do_api_call(session, url, tries) 
         else:
             raise ZiggoNextConnectionError("API call failed: " + str(response.status_code))
     
@@ -144,6 +151,7 @@ class ZiggoNext:
         self._api_url_session =  baseUrl + "/session"
         self._api_url_token =  baseUrl + "/tokens/jwt"
         self._api_url_channels =  baseUrl + "/channels"
+        self._api_url_recordings = baseUrl + "/networkdvrrecordings"
         self.logger = logger
         self.get_session_and_token()
         self._api_url_settop_boxes =  COUNTRY_URLS_PERSONALIZATION_FORMAT[self._country_code].format(household_id=self.session.householdId)
@@ -254,3 +262,58 @@ class ZiggoNext:
                 box.channels = self.channels
         else:
             self.logger.error("Can't retrieve channels...")
+
+    def get_recordings(self):
+        results = []
+        json_result = self._do_api_call(self.session, self._api_url_recordings)
+        recordings = json_result["recordings"]
+        for recording in recordings:
+            if recording["type"] == "single":
+                results.append(self._get_single_recording(recording))
+            elif recording["type"] == "season":
+                results.append(self._get_show_recording_summary(recording, "parentMediaGroupId"))
+            elif recording["type"] == "show":
+                results.append(self._get_show_recording_summary(recording, "mediaGroupId"))
+
+        return results
+    
+    def _get_single_recording(self, payload):
+        recording = ZiggoRecordingSingle(payload["recordingId"], payload["title"], payload["images"][0]["url"])
+        if "seasonNumber" in payload:
+            recording.set_season(payload["seasonNumber"])
+        else:
+            recording.set_season(None)
+        if "episodeNumber" in payload:
+            recording.set_episode(payload["episodeNumber"])
+        else:
+            recording.set_episode(None)
+        return {
+            "type": "recording",
+            "recording": recording
+        }
+    
+    def get_show_recording(self, media_group_id):
+        show_url = self._api_url_recordings + f"?byMediaGroupIdForShow={media_group_id}&sort=startTime%7CASC"
+        show_payload = self._do_api_call(self.session, show_url)
+        
+        recordings = show_payload["recordings"]
+        example_recording = recordings[0]
+        if "numberOfEpisodes" not in example_recording:
+            example_recording["numberOfEpisodes"] = 0
+        show_recording = ZiggoRecordingShow(media_group_id, example_recording["showTitle"], example_recording["numberOfEpisodes"], example_recording["images"][0]["url"])
+        for recording in recordings:
+            show_recording.append_child(self._get_single_recording(recording))
+        return {
+            "type": "show",
+            "show": show_recording
+        }
+
+    def _get_show_recording_summary(self, recording_payload, group_id):
+        show_recording = ZiggoRecordingShow(recording_payload[group_id], recording_payload["title"],recording_payload["numberOfEpisodes"],  recording_payload["images"][0]["url"])
+        return {
+            "type": "show",
+            "show": show_recording
+        }
+    
+    def play_recording(self, box_id, recording_id):
+        self.settop_boxes[box_id].play_recording(recording_id)

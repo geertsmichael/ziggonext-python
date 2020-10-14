@@ -60,6 +60,7 @@ class ZiggoNextBox:
         self._mqtt_broker = COUNTRY_URLS_MQTT[country_code]
     
     def register(self):
+        self._do_subscribe("#")
         self._do_subscribe(self._householdId)
         self._do_subscribe(self._householdId + "/+/status")
         payload = {
@@ -245,6 +246,20 @@ class ZiggoNextBox:
             + '","friendlyDeviceName":"Home Assistant"},"status":{"sourceType":"linear","source":{"channelId":"'
             + serviceId
             + '"},"relativePosition":0,"speed":1}}'
+        )
+
+        self.mqttClient.publish(self._householdId + "/" + self.box_id, payload)
+        self._request_settop_box_state()
+
+    def play_recording(self, recordingId):
+        payload = (
+            '{"id":"'
+            + _makeId(8)
+            + '","type":"CPE.pushToTV","source":{"clientId":"'
+            + self.mqttClientId
+            + '","friendlyDeviceName":"Home Assistant"},"status":{"sourceType":"nDVR","source":{"recordingId":"'
+            + recordingId
+            + '"},"relativePosition":0}}'
         )
 
         self.mqttClient.publish(self._householdId + "/" + self.box_id, payload)

@@ -53,3 +53,42 @@ class ZiggoChannel:
         self.streamImage = streamImage
         self.logoImage = logoImage
         self.channelNumber = channelNumber
+
+class ZiggoRecordingSingle:
+    recording_id: str
+    title: str
+    image: str
+    season: int
+    episode: int
+
+    def __init__(self, recording_id, title, image):
+        self.recording_id = recording_id
+        self.title = title
+        self.image = image
+        self.season = None
+        self.episode = None
+
+    def set_season(self, season:int):
+        self.season = season
+        
+    def set_episode(self, episode:int):
+        self.episode = episode
+
+
+class ZiggoRecordingShow:
+    title: str
+    media_group_id: str
+    image: str
+    children: []
+    episode_count: int
+
+    def __init__(self, media_group_id, title, episode_count, image):
+        self.media_group_id = media_group_id
+        self.title = title
+        self.image = image
+        self.episode_count = episode_count
+        self.children = []
+    
+    def append_child(self, season_recording:ZiggoRecordingSingle):
+        self.children.append(season_recording)
+
