@@ -134,7 +134,7 @@ class ZiggoNext:
             self.logger.info(f"Api call resultcode was 403. Refreshing token en trying again...")
             self.get_session()
             tries+=1
-            self._do_api_call(session, url, tries) 
+            return self._do_api_call(session, url, tries) 
         else:
             raise ZiggoNextConnectionError("API call failed: " + str(response.status_code))
     
