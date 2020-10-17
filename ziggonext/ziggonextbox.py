@@ -133,23 +133,31 @@ class ZiggoNextBox:
             if sourceType == BOX_PLAY_STATE_REPLAY:
                 self.info.setSourceType(BOX_PLAY_STATE_REPLAY)
                 eventId = stateSource["eventId"]
-                self.info.setChannel(None)
-                self.info.setChannelTitle(None)
+                listing = self._get_listing(eventId)
+                channel_id = self._get_listing_channel_id(listing)
+                channel = self.channels[channel_id]
+                self.info.setChannel(channel_id)
+                self.info.setChannelTitle(channel.title)
                 self.info.setTitle(
-                    "ReplayTV: " + self._get_recording_title(eventId)
+                    "ReplayTV: " + self._get_listing_title(listing)
                 )
-                self.info.setImage(self._get_recording_image(eventId))
+                self.info.setImage(self._get_listing_image(listing))
                 self.info.setPaused(speed == 0)
             elif sourceType == BOX_PLAY_STATE_DVR:
                 self.info.setSourceType(BOX_PLAY_STATE_DVR)
                 recordingId = stateSource["recordingId"]
-                self.info.setChannel(None)
-                self.info.setChannelTitle(None)
+                listing = self._get_listing(recordingId)
+                self.logger.info(self.channels)
+                channel_id = self._get_listing_channel_id(listing)
+                self.logger.info(self.channels)
+                channel = self.channels[channel_id]
+                self.info.setChannel(channel_id)
+                self.info.setChannelTitle(channel.title)
                 self.info.setTitle(
-                    "Recording: " + self._get_recording_title(recordingId)
+                    "Recording: " + self._get_listing_title(listing)
                 )
                 self.info.setImage(
-                    self._get_recording_image(recordingId)
+                    self._get_listing_image(listing)
                 )
                 self.info.setPaused(speed == 0)
             elif sourceType == BOX_PLAY_STATE_BUFFER:
@@ -157,10 +165,11 @@ class ZiggoNextBox:
                 channelId = stateSource["channelId"]
                 channel = self.channels[channelId]
                 eventId = stateSource["eventId"]
+                listing = self._get_listing(eventId)
                 self.info.setChannel(channelId)
                 self.info.setChannelTitle(channel.title)
                 self.info.setTitle(
-                    "Delayed: " + self._get_recording_title(eventId)
+                    "Delayed: " + self._get_listing_title(listing)
                 )
                 self.info.setImage(channel.streamImage)
                 self.info.setPaused(speed == 0)
@@ -198,21 +207,25 @@ class ZiggoNextBox:
         if self._change_callback:
             self._change_callback()
     
-    def _get_recording_title(self, scCridImi):
-        """Get recording title."""
-        self.logger.debug("retrieving recording title")
-        response = requests.get(self._api_url_recording_format.format(id=scCridImi))
-        if response.status_code == 200:
-            content = response.json()
-            return content["program"]["title"]
-        return None
+    def _get_listing_title(self, content):
+        """Get listing title."""
+        return content["program"]["title"]
+
     
-    def _get_recording_image(self, scCridImi):
-        """Get recording image."""
-        response = requests.get(self._api_url_recording_format.format(id=scCridImi))
+    def _get_listing_image(self, content):
+        """Get listing image."""
+        return content["program"]["images"][0]["url"]
+
+    def _get_listing_channel_id(self, content):
+        """Get listing channelId."""
+        return content["stationId"].replace("lgi-nl-prod-master:","")
+    
+    def _get_listing(self, listing_id):
+        response = requests.get(self._api_url_listing_format.format(id=listing_id))
         if response.status_code == 200:
             content = response.json()
-            return content["program"]["images"][0]["url"]
+            self.logger.debug(content)
+            return content
         return None
 
     def _get_channel_title(self, channelId, scCridImi):
