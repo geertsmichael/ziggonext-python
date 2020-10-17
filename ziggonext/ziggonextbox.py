@@ -15,6 +15,8 @@ from .const import (
     BOX_PLAY_STATE_DVR,
     BOX_PLAY_STATE_REPLAY,
     BOX_PLAY_STATE_APP,
+    BOX_PLAY_STATE_VOD,
+    
     ONLINE_RUNNING,
     ONLINE_STANDBY,
     UNKNOWN,
@@ -56,13 +58,15 @@ class ZiggoNextBox:
     def _createUrls(self, country_code: str):
         baseUrl = COUNTRY_URLS_HTTP[country_code]
         self._api_url_listing_format =  baseUrl + "/listings/{id}"
-        self._api_url_recording_format =  baseUrl + "/listings/{id}"
+        self._api_url_mediagroup_format =  baseUrl + "/mediagroups/{id}"
         self._mqtt_broker = COUNTRY_URLS_MQTT[country_code]
     
     def register(self):
         self._do_subscribe("#")
         self._do_subscribe(self._householdId)
         self._do_subscribe(self._householdId + "/+/status")
+        self._do_subscribe(self._householdId + "/+/localRecordings")
+        self._do_subscribe(self._householdId + "/+/localRecordings/capacity")
         payload = {
                 "source": self.mqttClientId,
                 "state": "ONLINE_RUNNING",
@@ -111,11 +115,12 @@ class ZiggoNextBox:
         }
         self.mqttClient.publish(topic, json.dumps(payload))
     
-    def _update_settop_box(self, payload):
+    def update_settop_box(self, payload):
         """Updates settopbox state"""
         deviceId = payload["source"]
         if deviceId != self.box_id:
             return
+        self.logger.debug(f"Updating box {self.box_id} with payload:")
         self.logger.debug(payload)
         statusPayload = payload["status"]
         if not "uiStatus" in statusPayload:
@@ -153,9 +158,7 @@ class ZiggoNextBox:
                 channel = self.channels[channel_id]
                 self.info.setChannel(channel_id)
                 self.info.setChannelTitle(channel.title)
-                self.info.setTitle(
-                    "Recording: " + self._get_listing_title(listing)
-                )
+                self.info.setTitle("Recording: " + self._get_listing_title(listing))
                 self.info.setImage(
                     self._get_listing_image(listing)
                 )
@@ -178,13 +181,21 @@ class ZiggoNextBox:
                 channelId = stateSource["channelId"]
                 eventId = stateSource["eventId"]
                 channel = self.channels[channelId]
+                listing = self._get_listing(eventId)
                 self.info.setChannel(channelId)
                 self.info.setChannelTitle(channel.title)
-                self.info.setTitle(
-                    self._get_channel_title(channelId, eventId)
-                )
+                self.info.setTitle(self._get_listing_title(listing))
                 self.info.setImage(channel.streamImage)
                 self.info.setPaused(False)
+            elif playerState["sourceType"] == BOX_PLAY_STATE_VOD:
+                self.info.setSourceType(BOX_PLAY_STATE_VOD)
+                title_id = stateSource["titleId"]
+                mediagroup_content = self._get_mediagroup(title_id)
+                self.info.setChannel(None)
+                self.info.setChannelTitle("VOD")
+                self.info.setTitle(mediagroup_content["title"])
+                self.info.setImage(self._get_mediagroup_image(mediagroup_content))
+                self.info.setPaused(speed == 0)
             else:
                 self.info.setSourceType(BOX_PLAY_STATE_CHANNEL)
                 eventId = stateSource["eventId"]
@@ -207,38 +218,33 @@ class ZiggoNextBox:
         if self._change_callback:
             self._change_callback()
     
-    def _get_listing_title(self, content):
+    def _get_listing_title(self, listing_content):
         """Get listing title."""
-        return content["program"]["title"]
+        return listing_content["program"]["title"]
 
     
-    def _get_listing_image(self, content):
+    def _get_listing_image(self, listing_content):
         """Get listing image."""
-        return content["program"]["images"][0]["url"]
+        return listing_content["program"]["images"][0]["url"]
 
-    def _get_listing_channel_id(self, content):
+    def _get_listing_channel_id(self, listing_content):
         """Get listing channelId."""
-        return content["stationId"].replace("lgi-nl-prod-master:","")
+        return listing_content["stationId"].replace("lgi-nl-prod-master:","")
     
     def _get_listing(self, listing_id):
         response = requests.get(self._api_url_listing_format.format(id=listing_id))
         if response.status_code == 200:
-            content = response.json()
-            self.logger.debug(content)
-            return content
+            return response.json()
         return None
 
-    def _get_channel_title(self, channelId, scCridImi):
-        """Get channel title"""
-        response = requests.get(
-            self._api_url_listing_format.format(id=scCridImi)
-        )
-        self.logger.debug("response completed")
+    def _get_mediagroup(self, title_id):
+        response = requests.get(self._api_url_mediagroup_format.format(id=title_id))
         if response.status_code == 200:
-            content = response.json()
-            if "program" in content:
-                return content["program"]["title"]
+            return response.json()
         return None
+    
+    def _get_mediagroup_image(self, mediagroup_content):
+        return mediagroup_content["images"][0]["url"]
     
     def send_key_to_box(self,key: str):
         """Sends emulated (remote) key press to settopbox"""

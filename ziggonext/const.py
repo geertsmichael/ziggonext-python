@@ -10,6 +10,7 @@ BOX_PLAY_STATE_REPLAY = "replay"
 BOX_PLAY_STATE_DVR = "nDVR"
 BOX_PLAY_STATE_BUFFER = "reviewbuffer"
 BOX_PLAY_STATE_APP = "app"
+BOX_PLAY_STATE_VOD = "VOD"
 
 # List with available media keys.
 MEDIA_KEY_POWER = "Power"

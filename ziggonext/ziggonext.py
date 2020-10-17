@@ -80,7 +80,7 @@ class ZiggoNext:
 
     def _register_settop_boxes(self):
         """Get settopxes"""
-        jsonResult = self._do_api_call(self.session, self._api_url_settop_boxes)
+        jsonResult = self._do_api_call(self._api_url_settop_boxes)
         for box in jsonResult:
             if not box["platformType"] == "EOS":
                 continue
@@ -117,30 +117,30 @@ class ZiggoNext:
         if "deviceType" in jsonPayload and jsonPayload["deviceType"] == "STB":
            self.settop_boxes[deviceId]._update_settopbox_state(jsonPayload)
         if "status" in jsonPayload:
-            self.settop_boxes[deviceId]._update_settop_box(jsonPayload)
+            self.settop_boxes[deviceId].update_settop_box(jsonPayload)
 
-    def _do_api_call(self, session, url, tries = 0):
+    def _do_api_call(self, url, tries = 0):
         """Executes api call and returns json object"""
         if tries > 9:
             raise ZiggoNextConnectionError("API call failed. See previous errors.")
         headers = {
-            "X-OESP-Token": session.oespToken,
+            "X-OESP-Token": self.session.oespToken,
             "X-OESP-Username": self.username,
         }
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 403:
-            self.logger.info(f"Api call resultcode was 403. Refreshing token en trying again...")
+            self.logger.warning(f"Api call resultcode was 403. Refreshing token en trying again...")
             self.get_session()
             tries+=1
-            return self._do_api_call(session, url, tries) 
+            return self._do_api_call(url, tries) 
         else:
             raise ZiggoNextConnectionError("API call failed: " + str(response.status_code))
     
     def _get_token(self):
         """Get token from Ziggo Next"""
-        jsonResult = self._do_api_call(self.session, self._api_url_token)
+        jsonResult = self._do_api_call(self._api_url_token)
         self.token = jsonResult["token"]
         self.logger.debug("Fetched a token: %s", jsonResult)
         
@@ -265,7 +265,7 @@ class ZiggoNext:
 
     def get_recordings(self):
         results = []
-        json_result = self._do_api_call(self.session, self._api_url_recordings)
+        json_result = self._do_api_call(self._api_url_recordings)
         recordings = json_result["recordings"]
         for recording in recordings:
             if recording["type"] == "single":
@@ -294,7 +294,7 @@ class ZiggoNext:
     
     def get_show_recording(self, media_group_id):
         show_url = self._api_url_recordings + f"?byMediaGroupIdForShow={media_group_id}&sort=startTime%7CASC"
-        show_payload = self._do_api_call(self.session, show_url)
+        show_payload = self._do_api_call(show_url)
         
         recordings = show_payload["recordings"]
         example_recording = recordings[0]
