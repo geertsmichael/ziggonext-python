@@ -21,6 +21,7 @@ from .const import (
     ONLINE_STANDBY,
     UNKNOWN,
     MEDIA_KEY_PLAY_PAUSE,
+    MEDIA_KEY_STOP,
     MEDIA_KEY_CHANNEL_DOWN,
     MEDIA_KEY_CHANNEL_UP,
     MEDIA_KEY_POWER,
@@ -82,10 +83,9 @@ class ZiggoNext:
         """Get settopxes"""
         jsonResult = self._do_api_call(self._api_url_settop_boxes)
         for box in jsonResult:
-            if not box["platformType"] == "EOS":
-                continue
-            box_id = box["deviceId"]
-            self.settop_boxes[box_id] = ZiggoNextBox(box_id, box["settings"]["deviceFriendlyName"], self.session.householdId, self.token, self._country_code, self.logger, self.mqttClient, self.mqttClientId)
+            if box["platformType"] == "EOS" or box["platformType"] == "HORIZON":
+                box_id = box["deviceId"]
+                self.settop_boxes[box_id] = ZiggoNextBox(box_id, box["settings"]["deviceFriendlyName"], self.session.householdId, self.token, self._country_code, self.logger, self.mqttClient, self.mqttClientId)
 
     def _on_mqtt_client_connect(self, client, userdata, flags, resultCode):
         """Handling mqtt connect result"""
@@ -187,6 +187,12 @@ class ZiggoNext:
         box = self.settop_boxes[box_id]
         if box.state == ONLINE_RUNNING and box.info.paused:
             self._send_key_to_box(box_id, MEDIA_KEY_PLAY_PAUSE)
+
+    def stop(self, box_id):
+        """Stop the settopbox"""
+        box = self.settop_boxes[box_id]
+        if box.state == ONLINE_RUNNING and box.info.paused:
+            self._send_key_to_box(box_id, MEDIA_KEY_STOP)
 
     def next_channel(self, box_id):
         """Select the next channel for given settop box."""
