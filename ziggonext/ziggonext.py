@@ -70,8 +70,13 @@ class ZiggoNext:
         else:
             session = response.json()
             self.logger.debug(session)
+
+            locationId = None
+            if "locationId" in session:
+                locationId = session["locationId"]
+
             self.session = ZiggoNextSession(
-                session["customer"]["householdId"], session["oespToken"]
+                session["customer"]["householdId"], session["oespToken"], locationId
             )
 
     def get_session_and_token(self):
@@ -150,10 +155,15 @@ class ZiggoNext:
         self._mqtt_broker = COUNTRY_URLS_MQTT[self._country_code]
         self._api_url_session =  baseUrl + "/session"
         self._api_url_token =  baseUrl + "/tokens/jwt"
-        self._api_url_channels =  baseUrl + "/channels"
-        self._api_url_recordings = baseUrl + "/networkdvrrecordings"
+
         self.logger = logger
         self.get_session_and_token()
+        if self.session.locationId is None:
+            self._api_url_channels =  baseUrl + "/channels"
+        else:
+            self._api_url_channels =  baseUrl + "/channels?byLocationId=" + self.session.locationId
+
+        self._api_url_recordings = baseUrl + "/networkdvrrecordings"
         self._api_url_settop_boxes =  COUNTRY_URLS_PERSONALIZATION_FORMAT[self._country_code].format(household_id=self.session.householdId)
         self.mqttClientId = _makeId(30)
         self.mqttClient = mqtt.Client(self.mqttClientId, transport="websockets")
@@ -227,6 +237,7 @@ class ZiggoNext:
     def load_channels(self):
         """Refresh channels list for now-playing data."""
         response = requests.get(self._api_url_channels)
+        self.logger.debug("Channel Url: %s", self._api_url_channels)
         if response.status_code == 200:
             content = response.json()
 

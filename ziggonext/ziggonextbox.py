@@ -220,6 +220,8 @@ class ZiggoNextBox:
     
     def _get_listing_title(self, listing_content):
         """Get listing title."""
+        if listing_content is None:
+            return ""
         return listing_content["program"]["title"]
 
     
@@ -229,7 +231,7 @@ class ZiggoNextBox:
 
     def _get_listing_channel_id(self, listing_content):
         """Get listing channelId."""
-        return listing_content["stationId"].replace("lgi-nl-prod-master:","")
+        return listing_content["stationId"].replace("lgi-nl-prod-master:","").replace("lgi-be-prod-master:","")
     
     def _get_listing(self, listing_id):
         response = requests.get(self._api_url_listing_format.format(id=listing_id))
