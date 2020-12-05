@@ -6,6 +6,7 @@ import paho.mqtt.client as mqtt
 import random
 import time
 import sys, traceback
+import re
 
 import requests
 from .models import ZiggoNextSession, ZiggoChannel, ZiggoRecordingSingle, ZiggoRecordingShow
@@ -27,7 +28,8 @@ from .const import (
     MEDIA_KEY_POWER,
     COUNTRY_URLS_HTTP,
     COUNTRY_URLS_MQTT,
-    COUNTRY_URLS_PERSONALIZATION_FORMAT
+    COUNTRY_URLS_PERSONALIZATION_FORMAT,
+    BE_AUTH_URL
 )
 
 DEFAULT_PORT = 443
@@ -71,17 +73,90 @@ class ZiggoNext:
             session = response.json()
             self.logger.debug(session)
 
-            locationId = None
-            if "locationId" in session:
-                locationId = session["locationId"]
-
             self.session = ZiggoNextSession(
-                session["customer"]["householdId"], session["oespToken"], locationId
+                session["customer"]["householdId"], session["oespToken"], None
+            )
+
+    def get_be_session(self):
+        """Get Telenet (BE only) Next Session information"""
+        try:
+            # get authentication details
+            session = requests.Session()
+            response = session.get(self._api_url_authorization)
+
+            if not response.ok:
+                raise ZiggoNextAuthenticationError("Could not get authorizationUri")
+            else:
+                auth = response.json()
+                authorizationUri = auth["session"]["authorizationUri"]
+                authState = auth["session"]["state"]
+                authValidtyToken = auth["session"]["validityToken"]
+
+                # follow authorizationUri to get AUTH cookie
+                response = session.get(authorizationUri)
+                if not response.ok:
+                    raise ZiggoNextAuthenticationError("Unable to authorize to get AUTH cookie")
+                else:
+                    # login
+                    payload = {"j_username": self.username, "j_password": self.password, "rememberme": "true"}
+                    response = session.post(BE_AUTH_URL, data=payload, allow_redirects=False)
+
+                    if not response.ok:
+                        raise ZiggoNextAuthenticationError("Unable to login, wrong credentials")
+                    else:
+                        # follow redirect url
+                        url = response.headers["Location"]
+                        if len(re.findall(r"authentication_error=true", url)) > 0:
+                            raise ZiggoNextAuthenticationError("Unable to login, wrong credentials")
+
+                        response = session.get(url, allow_redirects=False)
+                        if not response.ok:
+                            raise ZiggoNextAuthenticationError("Unable to oauth authorize")
+                        else:
+                            # obtain authorizationCode
+                            url = response.headers["Location"]
+                            codeMatches = re.findall(r"code=(.*)&", url)
+                            if not len(codeMatches) == 1:
+                                raise ZiggoNextAuthenticationError("Unable to obtain authorizationCode")
+
+                            authorizationCode = codeMatches[0]
+
+                            # authorize again
+                            payload = {"authorizationGrant":{"authorizationCode":authorizationCode,"validityToken":authValidtyToken,"state":authState}}
+                            response = session.post(self._api_url_authorization, json=payload)
+                            if not response.ok:
+                                raise ZiggoNextAuthenticationError("Unable to authorize with oauth code")
+                            else:
+                                auth = response.json()
+                                refreshToken = auth["refreshToken"]
+
+                                # get OESP code
+                                payload = {"refreshToken":refreshToken,"username":self.username}
+                                response = session.post(self._api_url_session + "?token=true", json=payload)
+
+        except (Exception):
+            raise ZiggoNextConnectionError("Unknown connection failure")
+
+        if not response.ok:
+            status = response.json()
+            self.logger.debug(status)
+            code = status[0].code
+            reason = status[0].reason
+
+            raise ZiggoNextAuthenticationError("Invalid authorization response - " + code + ": " + reason)
+        else:
+            session = response.json()
+            self.logger.debug(session)
+            self.session = ZiggoNextSession(
+                session["customer"]["householdId"], session["oespToken"], session["locationId"]
             )
 
     def get_session_and_token(self):
         """Get session and token from Ziggo Next"""
-        self.get_session()
+        if self._country_code in ["be-nl", "be-fr"]:
+            self.get_be_session()
+        else:
+            self.get_session()
         self._get_token()
 
     def _register_settop_boxes(self):
@@ -120,7 +195,7 @@ class ZiggoNext:
         deviceId = jsonPayload["source"]
         self.logger.debug(jsonPayload)
         if "deviceType" in jsonPayload and jsonPayload["deviceType"] == "STB":
-           self.settop_boxes[deviceId]._update_settopbox_state(jsonPayload)
+            self.settop_boxes[deviceId]._update_settopbox_state(jsonPayload)
         if "status" in jsonPayload:
             self.settop_boxes[deviceId].update_settop_box(jsonPayload)
 
@@ -139,22 +214,23 @@ class ZiggoNext:
             self.logger.warning(f"Api call resultcode was 403. Refreshing token en trying again...")
             self.get_session()
             tries+=1
-            return self._do_api_call(url, tries) 
+            return self._do_api_call(url, tries)
         else:
             raise ZiggoNextConnectionError("API call failed: " + str(response.status_code))
-    
+
     def _get_token(self):
         """Get token from Ziggo Next"""
         jsonResult = self._do_api_call(self._api_url_token)
         self.token = jsonResult["token"]
         self.logger.debug("Fetched a token: %s", jsonResult)
-        
+
     def initialize(self, logger, enableMqttLogging: bool = False):
         """Get token and start mqtt client for receiving data from Ziggo Next"""
         baseUrl = COUNTRY_URLS_HTTP[self._country_code]
         self._mqtt_broker = COUNTRY_URLS_MQTT[self._country_code]
         self._api_url_session =  baseUrl + "/session"
         self._api_url_token =  baseUrl + "/tokens/jwt"
+        self._api_url_authorization =  baseUrl + "/authorization"
 
         self.logger = logger
         self.get_session_and_token()
@@ -226,8 +302,8 @@ class ZiggoNext:
         """Turn the settop box off."""
         box = self.settop_boxes[box_id]
         if box.state == ONLINE_RUNNING:
-           self._send_key_to_box(box_id, MEDIA_KEY_POWER)
-           box.turn_off()
+            self._send_key_to_box(box_id, MEDIA_KEY_POWER)
+            box.turn_off()
 
     def is_available(self, box_id):
         box = self.settop_boxes[box_id]
@@ -293,7 +369,7 @@ class ZiggoNext:
                 results.append(self._get_show_recording_summary(recording, "mediaGroupId"))
 
         return results
-    
+
     def _get_single_recording(self, payload):
         recording = ZiggoRecordingSingle(payload["recordingId"], payload["title"], payload["images"][0]["url"])
         if "seasonNumber" in payload:
@@ -308,11 +384,11 @@ class ZiggoNext:
             "type": "recording",
             "recording": recording
         }
-    
+
     def get_show_recording(self, media_group_id):
         show_url = self._api_url_recordings + f"?byMediaGroupIdForShow={media_group_id}&sort=startTime%7CASC"
         show_payload = self._do_api_call(show_url)
-        
+
         recordings = show_payload["recordings"]
         example_recording = recordings[0]
         if "numberOfEpisodes" not in example_recording:
@@ -331,6 +407,6 @@ class ZiggoNext:
             "type": "show",
             "show": show_recording
         }
-    
+
     def play_recording(self, box_id, recording_id):
         self.settop_boxes[box_id].play_recording(recording_id)

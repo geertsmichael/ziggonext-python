@@ -31,6 +31,8 @@ MEDIA_KEY_STOP = "MediaStop"
 MEDIA_KEY_REWIND = "MediaRewind"  # Not yet implemented
 MEDIA_KEY_FAST_FORWARD = "MediaFastForward"  # Not yet implemented
 
+BE_AUTH_URL = "https://login.prd.telenet.be/openid/login.do"
+
 COUNTRY_URLS_HTTP = {
     "nl": "https://web-api-prod-obo.horizon.tv/oesp/v4/NL/nld/web",
     "ch": "https://web-api-prod-obo.horizon.tv/oesp/v3/CH/eng/web",
@@ -42,7 +44,7 @@ COUNTRY_URLS_PERSONALIZATION_FORMAT = {
     "nl": "https://prod.spark.ziggogo.tv/nld/web/personalization-service/v1/customer/{household_id}/devices",
     "ch": "https://prod.spark.upctv.ch/deu/web/personalization-service/v1/customer/{household_id}/devices",
     "be-nl": "https://prod.spark.telenettv.be/nld/web/personalization-service/v1/customer/{household_id}/devices",
-    "be-nl": "https://prod.spark.telenettv.be/nld/web/personalization-service/v1/customer/{household_id}/devices",
+    "be-fr": "https://prod.spark.telenettv.be/fr/web/personalization-service/v1/customer/{household_id}/devices",
     "at": "https://prod.spark.magentatv.at/deu/web/personalization-service/v1/customer/{household_id}/devices"
 } 
 
