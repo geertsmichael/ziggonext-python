@@ -191,7 +191,7 @@ class ZiggoNext:
     def stop(self, box_id):
         """Stop the settopbox"""
         box = self.settop_boxes[box_id]
-        if box.state == ONLINE_RUNNING and box.info.paused:
+        if box.state == ONLINE_RUNNING:
             self._send_key_to_box(box_id, MEDIA_KEY_STOP)
 
     def next_channel(self, box_id):
