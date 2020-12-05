@@ -2,10 +2,12 @@
 class ZiggoNextSession:
     householdId: str
     oespToken: str
+    locationId: str
 
-    def __init__(self, houseHoldId, oespToken):
+    def __init__(self, houseHoldId, oespToken, locationId):
         self.householdId = houseHoldId
         self.oespToken = oespToken
+        self.locationId = locationId
 
 class ZiggoNextBoxPlayingInfo:
     channelId: str
