@@ -14,7 +14,7 @@ BOX_PLAY_STATE_VOD = "VOD"
 
 # List with available media keys.
 MEDIA_KEY_POWER = "Power"
-MEDIA_KEY_ENTER = "Enter"  # Not yet implemented
+MEDIA_KEY_ENTER = "Enter"
 MEDIA_KEY_ESCAPE = "Escape"  # Not yet implemented
 
 MEDIA_KEY_HELP = "Help"  # Not yet implemented
@@ -25,11 +25,11 @@ MEDIA_KEY_CONTEXT_MENU = "ContextMenu"  # Not yet implemented
 MEDIA_KEY_CHANNEL_UP = "ChannelUp"
 MEDIA_KEY_CHANNEL_DOWN = "ChannelDown"
 
-MEDIA_KEY_RECORD = "MediaRecord"  # Not yet implemented
+MEDIA_KEY_RECORD = "MediaRecord"
 MEDIA_KEY_PLAY_PAUSE = "MediaPlayPause"
 MEDIA_KEY_STOP = "MediaStop"
-MEDIA_KEY_REWIND = "MediaRewind"  # Not yet implemented
-MEDIA_KEY_FAST_FORWARD = "MediaFastForward"  # Not yet implemented
+MEDIA_KEY_REWIND = "MediaRewind"
+MEDIA_KEY_FAST_FORWARD = "MediaFastForward"
 
 BE_AUTH_URL = "https://login.prd.telenet.be/openid/login.do"
 
@@ -46,8 +46,7 @@ COUNTRY_URLS_PERSONALIZATION_FORMAT = {
     "be-nl": "https://prod.spark.telenettv.be/nld/web/personalization-service/v1/customer/{household_id}/devices",
     "be-fr": "https://prod.spark.telenettv.be/fr/web/personalization-service/v1/customer/{household_id}/devices",
     "at": "https://prod.spark.magentatv.at/deu/web/personalization-service/v1/customer/{household_id}/devices"
-} 
-
+}
 
 COUNTRY_URLS_MQTT = {
     "nl": "obomsg.prod.nl.horizon.tv",
