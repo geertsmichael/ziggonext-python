@@ -26,6 +26,10 @@ from .const import (
     MEDIA_KEY_CHANNEL_DOWN,
     MEDIA_KEY_CHANNEL_UP,
     MEDIA_KEY_POWER,
+    MEDIA_KEY_ENTER,
+    MEDIA_KEY_REWIND,
+    MEDIA_KEY_FAST_FORWARD,
+    MEDIA_KEY_RECORD,
     COUNTRY_URLS_HTTP,
     COUNTRY_URLS_MQTT,
     COUNTRY_URLS_PERSONALIZATION_FORMAT,
@@ -315,6 +319,30 @@ class ZiggoNext:
         if box.state == ONLINE_RUNNING:
             self._send_key_to_box(box_id, MEDIA_KEY_POWER)
             box.turn_off()
+
+    def press_enter(self, box_id):
+        """Press enter on the settop box"""
+        box = self.settop_boxes[box_id]
+        if box.state == ONLINE_RUNNING:
+            self._send_key_to_box(box_id, MEDIA_KEY_ENTER)
+
+    def rewind(self, box_id):
+        """Rewind the settop box"""
+        box = self.settop_boxes[box_id]
+        if box.state == ONLINE_RUNNING:
+            self._send_key_to_box(box_id, MEDIA_KEY_REWIND)
+
+    def fast_forward(self, box_id):
+        """Fast forward the settop box"""
+        box = self.settop_boxes[box_id]
+        if box.state == ONLINE_RUNNING:
+            self._send_key_to_box(box_id, MEDIA_KEY_FAST_FORWARD)
+
+    def record(self, box_id):
+        """Record on the settop box"""
+        box = self.settop_boxes[box_id]
+        if box.state == ONLINE_RUNNING:
+            self._send_key_to_box(box_id, MEDIA_KEY_RECORD)
 
     def is_available(self, box_id):
         box = self.settop_boxes[box_id]
