@@ -58,6 +58,25 @@ class ZiggoNext:
         self.channels = {}
         self._country_code = country_code
         self.channels = {}
+        self.baseUrl = COUNTRY_URLS_HTTP[self._country_code]
+        self._api_url_session =  self.baseUrl + "/session"
+        self._api_url_token =  self.baseUrl + "/tokens/jwt"
+        self._api_url_channels =  self.baseUrl + "/channels"
+        self._api_url_recordings = self.baseUrl + "/networkdvrrecordings"
+        self._api_url_authorization =  self.baseUrl + "/authorization"
+
+    def authenticate(self):
+        payload = {"username": self.username, "password": self.password}
+        try:
+            response = requests.post(self._api_url_session, json=payload)
+        except (Exception):
+            raise ZiggoNextConnectionError("Unknown connection failure")
+        if not response.ok:
+            status = response.json()
+            if status[0]['code'] == 'invalidCredentials':
+                raise ZiggoNextAuthenticationError("Invalid credentials")
+            raise ZiggoNextConnectionError("Authentication error: " + status)
+
 
     def get_session(self):
         """Get Ziggo Next Session information"""
@@ -190,7 +209,7 @@ class ZiggoNext:
 
     def _on_mqtt_client_disconnect(self, client, userdata, resultCode):
         """Set state to diconnect"""
-        self.logger.debug("Disconnected from mqtt client: " + str(resultCode))
+        self.logger.debug(f"Disconnected from mqtt client: {resultCode}")
         self.mqttClientConnected = False
 
     def _on_mqtt_client_message(self, client, userdata, message):
@@ -227,23 +246,15 @@ class ZiggoNext:
         jsonResult = self._do_api_call(self._api_url_token)
         self.token = jsonResult["token"]
         self.logger.debug("Fetched a token: %s", jsonResult)
-
-    def initialize(self, logger, enableMqttLogging: bool = False):
+        
+    def connect(self, logger, enableMqttLogging: bool = False):
         """Get token and start mqtt client for receiving data from Ziggo Next"""
-        baseUrl = COUNTRY_URLS_HTTP[self._country_code]
         self._mqtt_broker = COUNTRY_URLS_MQTT[self._country_code]
-        self._api_url_session =  baseUrl + "/session"
-        self._api_url_token =  baseUrl + "/tokens/jwt"
-        self._api_url_authorization =  baseUrl + "/authorization"
-
         self.logger = logger
         self.get_session_and_token()
-        if self.session.locationId is None:
-            self._api_url_channels =  baseUrl + "/channels"
-        else:
-            self._api_url_channels =  baseUrl + "/channels?byLocationId=" + self.session.locationId
+        if self.session.locationId is not None:
+            self._api_url_channels =  self.baseUrl + "/channels?byLocationId=" + self.session.locationId
 
-        self._api_url_recordings = baseUrl + "/networkdvrrecordings"
         self._api_url_settop_boxes =  COUNTRY_URLS_PERSONALIZATION_FORMAT[self._country_code].format(household_id=self.session.householdId)
         self.mqttClientId = _makeId(30)
         self.mqttClient = mqtt.Client(self.mqttClientId, transport="websockets")
@@ -438,3 +449,8 @@ class ZiggoNext:
 
     def play_recording(self, box_id, recording_id):
         self.settop_boxes[box_id].play_recording(recording_id)
+
+    def disconnect(self):
+        if not self.mqttClientConnected:
+            return
+        self.mqttClient.disconnect()
